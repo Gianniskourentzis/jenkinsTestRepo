@@ -4,20 +4,26 @@ pipeline {
     stages {
         stage('Checkout') {
             steps { 
-                git credentialsId: 'gianniskourentzis', url: 'https://github.com/Gianniskourentzis/jenkinsTestRepo.git'
-
+                // Specify the branch to checkout
+                git branch: 'main', credentialsId: 'gianniskourentzis', url: 'https://github.com/Gianniskourentzis/jenkinsTestRepo.git'
             }
         }
         
         stage('Build and Run with Docker Compose') {
             steps {
                 script { 
-                    sh 'docker compose pull '
-                    sh 'docker compose up -d '
+                    // Pull the latest images and build the containers
+                    sh 'docker-compose pull'
+                    sh 'docker-compose up -d --build'
                 }
             }
         }
     }
 
-    
+    post {
+        always {
+            // Optional: Bring down the Docker Compose setup after the build
+            sh 'docker-compose down'
+        }
+    }
 }
