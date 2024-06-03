@@ -1,17 +1,41 @@
 pipeline {
-    agent any 
+    agent any
+
+    environment {
+        // Define the path to your Docker Compose file if not in the root directory
+        COMPOSE_FILE = 'docker-compose.yml'
+    }
 
     stages {
         stage('Checkout') {
-            steps { 
-                // Specify the branch to checkout
+            steps {
+                // Checkout the code from your version control system
                 git branch: 'main', credentialsId: 'gianniskourentzis', url: 'https://github.com/Gianniskourentzis/jenkinsTestRepo.git'
             }
         }
-        
+
+        stage('Install Docker Compose') {
+            steps {
+                script {
+                    // Install Docker Compose if not installed
+                    sh '''
+                    if ! command -v docker-compose &> /dev/null
+                    then
+                        echo "Docker Compose not found. Installing..."
+                        sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+                        sudo chmod +x /usr/local/bin/docker-compose
+                        docker-compose --version
+                    else
+                        echo "Docker Compose is already installed."
+                    fi
+                    '''
+                }
+            }
+        }
+
         stage('Build and Run with Docker Compose') {
             steps {
-                script { 
+                script {
                     // Pull the latest images and build the containers
                     sh 'docker-compose pull'
                     sh 'docker-compose up -d --build'
