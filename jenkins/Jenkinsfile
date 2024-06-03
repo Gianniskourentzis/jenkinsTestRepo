@@ -1,53 +1,23 @@
 pipeline {
-    agent any
-
-    environment {
-        // Define the path to your Docker Compose file if not in the root directory
-        COMPOSE_FILE = 'docker-compose.yml'
-    }
+    agent any 
 
     stages {
         stage('Checkout') {
-            steps {
-                // Checkout the code from your version control system
-                git branch: 'main', credentialsId: 'gianniskourentzis', url: 'https://github.com/Gianniskourentzis/jenkinsTestRepo.git'
+            steps { 
+                git credentialsId: 'admin', url: 'https://github.com/Gianniskourentzis/jenkinsTestRepo.git'
+
             }
         }
-
-        stage('Install Docker Compose') {
-            steps {
-                script {
-                    // Install Docker Compose if not installed
-                    sh '''
-                    if ! command -v docker-compose &> /dev/null
-                    then
-                        echo "Docker Compose not found. Installing..."
-                        sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-                        sudo chmod +x /usr/local/bin/docker-compose
-                        docker-compose --version
-                    else
-                        echo "Docker Compose is already installed."
-                    fi
-                    '''
-                }
-            }
-        }
-
+        
         stage('Build and Run with Docker Compose') {
             steps {
-                script {
-                    // Pull the latest images and build the containers
-                    sh 'docker-compose pull'
-                    sh 'docker-compose up -d --build'
+                script { 
+                    sh 'docker compose pull '
+                    sh 'docker compose up -d '
                 }
             }
         }
     }
 
-    post {
-        always {
-            // Optional: Bring down the Docker Compose setup after the build
-            sh 'docker-compose down'
-        }
-    }
+    
 }
