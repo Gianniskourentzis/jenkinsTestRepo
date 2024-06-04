@@ -1,33 +1,20 @@
-// pipeline {
-//     agent any 
-
-//     stages {
-//         stage('Checkout') {
-//             steps { 
-//                 git branch: 'main', credentialsId: 'admin', url: 'https://github.com/Gianniskourentzis/jenkinsTestRepo.git'
-//             }
-//         }
-        
-//         stage('Build and Run with Docker Compose') {
-//             steps {
-//                 script { 
-//                     sh 'docker-compose pull'
-//                     sh 'docker-compose up -d'
-//                 }
-//             }
-//         }
-//     }
-// }
-
 pipeline {
-  agent {
-    docker { image 'node:16-alpine' }
-  }
-  stages {
-    stage('Test') {
-      steps {
-        sh 'node --version'
-      }
+    agent any 
+
+    stages {
+        stage('Checkout') {
+            steps { 
+                git branch: 'main', credentialsId: 'admin', url: 'https://github.com/Gianniskourentzis/jenkinsTestRepo.git'
+            }
+        }
+        
+        stage('Build and Run with Docker Compose') {
+            steps {
+                script { 
+                    sh 'docker-compose pull'
+                    sh 'docker-compose up -d'
+                }
+            }
+        }
     }
-  }
 }
