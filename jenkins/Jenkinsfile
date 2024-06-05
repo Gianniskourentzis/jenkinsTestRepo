@@ -18,3 +18,93 @@ pipeline {
         }
     }
 }
+
+
+pipeline {
+    agent {
+        node {
+            label 'dev01-PLOTO'
+        }
+    }
+    environment {
+        APP_NAME = "Dummyrest"
+        MAJOR_RELEASE = 0.1
+        DOCKER_TAG = ":0.1.${env.BUILD_NUMBER}"
+        DOCKER_REG = "harbor.ploto.rid-intrasoft.eu"
+        DOCKER_REPO = "/demo-docker/"
+        HOST_URL = "157.90.24.118"
+        DOCKER_REG_CREDS = "harbor-jenkins-creds"
+    }
+
+    stages {
+
+        // *************************
+        // *** IMAGE BUILD STAGE ***
+        // *************************
+        stage("Build_Docker_Images"){
+            steps {
+                echo "***** Building Docker Image *****"
+                sh 'DOCKER_TAG=test docker compose build'
+            }
+        }
+
+        // **************************************
+        // *** Functional & Integration Tests ***
+        // **************************************
+        stage("Test_the_image"){
+            steps {
+                echo "***** Running Functional Tests *****"
+                sh 'DOCKER_TAG=test docker compose up -d'
+                sh 'bash jenkins/tests/func_test.sh ${HOST_URL}'
+                sh 'DOCKER_TAG=test docker compose down --rmi all'
+            }
+        }
+
+        // **************************************
+        // *** Push Images to Harbor registry ***
+        // **************************************
+        stage("Push_Image"){
+            when {
+                environment name: "GIT_BRANCH", value: "origin/master"
+            }
+            steps {
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor-jenkins-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]){
+                    echo "***** Push Docker Image *****"
+                    sh 'docker compose build'
+                    sh 'docker login ${DOCKER_REG} -u ${USERNAME} -p ${PASSWORD}'
+                    sh 'docker image push ${DOCKER_REG}${DOCKER_REPO}rid-dummyrest${DOCKER_TAG}'
+                    sh 'DOCKER_TAG=":latest" docker compose build'
+                    sh 'docker image push ${DOCKER_REG}${DOCKER_REPO}rid-dummyrest:latest'
+                }
+            }
+        }
+        
+        // **************
+        // *** Deploy ***
+        // **************
+        stage("Deployment"){
+            when {
+                environment name: "GIT_BRANCH", value: "origin/master"
+            }
+
+            steps {
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'harbor-jenkins-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]){
+                    echo "***** Deploy Application *****"
+                    sh 'docker login ${DOCKER_REG} -u ${USERNAME} -p ${PASSWORD}'
+                    sh 'docker compose pull'
+                    sh 'docker compose up -d'
+                    sh 'docker ps'
+                }
+            }
+        }
+    }
+    // post{
+        // failure{
+        //     slackSend (color: "#FF0000", message: "Job FAILED: '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+        // }
+
+        // success{
+        //     slackSend (color: "#008000", message: "Job SUCCESSFUL: '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+        // }
+    // }
+}
