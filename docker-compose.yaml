@@ -4,8 +4,8 @@ services:
     image: confluentinc/cp-kafka:7.3.1
     container_name: stellio-kafka
     hostname: stellio-kafka
-    # ports:
-    #   - ${KAFKA_PORT}:${KAFKA_PORT}
+    ports:
+      - ${KAFKA_PORT}:${KAFKA_PORT}
     expose:
       - ${KAFKA_PORT}
     environment:
@@ -20,14 +20,8 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
       KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
-      # KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,PLAINTEXT:SASL_PLAINTEXT
-      # KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      # KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
-      # KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
-      # KAFKA_OPTS: -Djava.security.auth.login.config=/etc/kafka/kafka_server_jaas.conf
     volumes:
       - ./kafka/config/kafka/update_run.sh:/tmp/update_run.sh
-      # - ./kafka/kafka_server_jaas.conf:/etc/kafka/kafka_server_jaas.conf
     command: 'bash -c ''if [ ! -f /tmp/update_run.sh ]; then echo "ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'''
     networks:
       - default
@@ -46,9 +40,6 @@ services:
       SPRING_SECURITY_USER_NAME: ${SPRING_SECURITY_USER_NAME}
       SPRING_SECURITY_USER_PASSWORD: ${SPRING_SECURITY_USER_PASSWORD}
       KAFKA_CLUSTERS_0_READONLY: ${KAFKA_CLUSTERS_0_READONLY}
-      # KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: ${KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL}
-      # KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: ${KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM}
-      # KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: ${KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG}
     networks:
       - default
 
@@ -82,8 +73,8 @@ services:
       - SPRING_PROFILES_ACTIVE=${ENVIRONMENT}
     expose:
       - ${API_GATEWAY_PORT}
-    # ports:
-    #   - 8180:8080
+    ports:
+      - 8180:8080
     networks:
       - default
 
@@ -132,19 +123,6 @@ services:
         condition: service_healthy
       kafka:
         condition: service_started
-    networks:
-      - default
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    restart: always
-    ports:
-      - ${PGADMIN_PORT}:80
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-      MAX_LOGIN_ATTEMPTS: ${MAX_LOGIN_ATTEMPTS}
     networks:
       - default
 
@@ -218,20 +196,6 @@ services:
       PEP_PASSWORD: ${PEP_PASSWORD}
       PEP_PROXY_PDP: ${PEP_PROXY_PDP}
       PEP_PROXY_MAGIC_KEY: ${PEP_PROXY_MAGIC_KEY}
-    networks:
-      - default
-
-  auth2-api:
-    image: gianniskourentzis/ploto-auth-api:latest
-    container_name: auth2-api
-    hostname: auth2-api
-    restart: always
-    environment:
-      URL: "http://localhost:3000/oauth2/token"
-      CLIENT_ID: "4f76e525-47c4-4841-beb3-cd500fcb3e50"
-      CLIENT_SECRET: "ce4da7f3-cba7-40f8-9674-a9fd6f98e80e"
-    ports:
-      - 9090:9090
     networks:
       - default
 
