@@ -1,24 +1,24 @@
-version: '3.9'
+version: "3.9"
 services:
   kafka:
     image: confluentinc/cp-kafka:7.3.1
     container_name: stellio-kafka
     hostname: stellio-kafka
-    ports:
-      - 29092:29092
+    # ports:
+    #   - ${KAFKA_PORT}:${KAFKA_PORT}
     expose:
-      - 29092
+      - ${KAFKA_PORT}
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://stellio-kafka:9092,PLAINTEXT_HOST://localhost:29092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_PROCESS_ROLES: "broker,controller"
       KAFKA_NODE_ID: 1
-      KAFKA_LISTENERS: CONTROLLER://stellio-kafka:29093,PLAINTEXT://stellio-kafka:9092,PLAINTEXT_HOST://0.0.0.0:29092
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@stellio-kafka:29093'
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: CONTROLLER://stellio-kafka:29093,PLAINTEXT://stellio-kafka:9092,PLAINTEXT_HOST://0.0.0.0:${KAFKA_PORT}
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@stellio-kafka:29093"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
       KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
       # KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,PLAINTEXT:SASL_PLAINTEXT
       # KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
@@ -27,24 +27,28 @@ services:
       # KAFKA_OPTS: -Djava.security.auth.login.config=/etc/kafka/kafka_server_jaas.conf
     volumes:
       - ./kafka/config/kafka/update_run.sh:/tmp/update_run.sh
-    command: "bash -c 'if [ ! -f /tmp/update_run.sh ]; then echo \"ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?\" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'"
+      # - ./kafka/kafka_server_jaas.conf:/etc/kafka/kafka_server_jaas.conf
+    command: 'bash -c ''if [ ! -f /tmp/update_run.sh ]; then echo "ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'''
     networks:
       - default
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     ports:
-      - 8085:8080
+      - ${KAFKA_UI_PORT}:8080
     expose:
-      - 8085
+      - ${KAFKA_UI_PORT}
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
-      DYNAMIC_CONFIG_ENABLED: 'true'
-      AUTH_TYPE: "LOGIN_FORM"
-      SPRING_SECURITY_USER_NAME: user
-      SPRING_SECURITY_USER_PASSWORD: 2seXdrgNTrxtgUg
-      KAFKA_CLUSTERS_0_READONLY: true
+      DYNAMIC_CONFIG_ENABLED: "true"
+      AUTH_TYPE: ${AUTH_TYPE}
+      SPRING_SECURITY_USER_NAME: ${SPRING_SECURITY_USER_NAME}
+      SPRING_SECURITY_USER_PASSWORD: ${SPRING_SECURITY_USER_PASSWORD}
+      KAFKA_CLUSTERS_0_READONLY: ${KAFKA_CLUSTERS_0_READONLY}
+      # KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL: ${KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL}
+      # KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM: ${KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM}
+      # KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG: ${KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG}
     networks:
       - default
 
@@ -52,17 +56,17 @@ services:
     image: stellio/stellio-timescale-postgis:14-2.11.1-3.3
     container_name: stellio-postgres
     environment:
-      POSTGRES_USER: stellio
-      POSTGRES_PASS: zha2ewTvnGS8mR8
-      POSTGRES_DBNAME: stellio_search,stellio_subscription
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASS: ${POSTGRES_PASS}
+      POSTGRES_DBNAME: ${POSTGRES_DBNAME}
       POSTGRES_MULTIPLE_EXTENSIONS: postgis,timescaledb,pgcrypto
       ACCEPT_TIMESCALE_TUNING: TRUE
     expose:
-      - 5432
+      - ${POSTGRES_PORT}
     volumes:
       - ./stellio-postgres-storage:/var/lib/postgresql
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -h localhost -U stellio" ]
+      test: ["CMD-SHELL", "pg_isready -h localhost -U stellio"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -73,11 +77,11 @@ services:
   api-gateway:
     container_name: stellio-api-gateway
     hostname: api-gateway
-    image: stellio/stellio-api-gateway:latest-dev
+    image: stellio/stellio-api-gateway:${STELLIO_DOCKER_TAG}
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_PROFILES_ACTIVE=${ENVIRONMENT}
     expose:
-      - 8180
+      - ${API_GATEWAY_PORT}
     # ports:
     #   - 8180:8080
     networks:
@@ -85,19 +89,19 @@ services:
 
   search-service:
     container_name: stellio-search-service
-    image: stellio/stellio-search-service:latest-dev
+    image: stellio/stellio-search-service:${STELLIO_DOCKER_TAG}
     environment:
-      SPRING_PROFILES_ACTIVE: docker
-      SPRING_R2DBC_URL: r2dbc:postgresql://postgres/stellio_search
-      SPRING_FLYWAY_URL: jdbc:postgresql://postgres/stellio_search
-      SPRING_R2DBC_USERNAME: stellio
-      SPRING_R2DBC_PASSWORD: zha2ewTvnGS8mR8
-      APPLICATION_AUTHENTICATION_ENABLED: false
-      # APPLICATION_TENANTS_0_ISSUER: ${APPLICATION_TENANTS_0_ISSUER}
-      # APPLICATION_TENANTS_0_NAME: ${APPLICATION_TENANTS_0_NAME}
-      # APPLICATION_TENANTS_0_DBSCHEMA: ${APPLICATION_TENANTS_0_DBSCHEMA}
+      SPRING_PROFILES_ACTIVE: ${ENVIRONMENT}
+      SPRING_R2DBC_URL: r2dbc:postgresql://postgres/${STELLIO_SEARCH_DB_DATABASE}
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres/${STELLIO_SEARCH_DB_DATABASE}
+      SPRING_R2DBC_USERNAME: ${POSTGRES_USER}
+      SPRING_R2DBC_PASSWORD: ${POSTGRES_PASS}
+      APPLICATION_AUTHENTICATION_ENABLED: ${STELLIO_AUTHENTICATION_ENABLED}
+      APPLICATION_TENANTS_0_ISSUER: ${APPLICATION_TENANTS_0_ISSUER}
+      APPLICATION_TENANTS_0_NAME: ${APPLICATION_TENANTS_0_NAME}
+      APPLICATION_TENANTS_0_DBSCHEMA: ${APPLICATION_TENANTS_0_DBSCHEMA}
     expose:
-      - 8083
+      - ${SEARCH_SERVICE_PORT}
     depends_on:
       postgres:
         condition: service_healthy
@@ -108,21 +112,21 @@ services:
 
   subscription-service:
     container_name: stellio-subscription-service
-    image: stellio/stellio-subscription-service:latest-dev
+    image: stellio/stellio-subscription-service:${STELLIO_DOCKER_TAG}
     environment:
-      SPRING_PROFILES_ACTIVE: docker
-      SPRING_R2DBC_URL: r2dbc:postgresql://postgres/stellio_subscription
-      SPRING_FLYWAY_URL: jdbc:postgresql://postgres/stellio_subscription
-      SPRING_R2DBC_USERNAME: stellio
-      SPRING_R2DBC_PASSWORD: zha2ewTvnGS8mR8
-      APPLICATION_AUTHENTICATION_ENABLED: false
-      # APPLICATION_TENANTS_0_ISSUER: ${APPLICATION_TENANTS_0_ISSUER}
-      # APPLICATION_TENANTS_0_NAME: ${APPLICATION_TENANTS_0_NAME}
-      # APPLICATION_TENANTS_0_DBSCHEMA: ${APPLICATION_TENANTS_0_DBSCHEMA}
-      SUBSCRIPTION_ENTITY-SERVICE-URL: http://search-service:8083
-      SUBSCRIPTION_STELLIO_URL: http://localhost:8080
+      SPRING_PROFILES_ACTIVE: ${ENVIRONMENT}
+      SPRING_R2DBC_URL: r2dbc:postgresql://postgres/${STELLIO_SUBSCRIPTION_DB_DATABASE}
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres/${STELLIO_SUBSCRIPTION_DB_DATABASE}
+      SPRING_R2DBC_USERNAME: ${POSTGRES_USER}
+      SPRING_R2DBC_PASSWORD: ${POSTGRES_PASS}
+      APPLICATION_AUTHENTICATION_ENABLED: ${STELLIO_AUTHENTICATION_ENABLED}
+      APPLICATION_TENANTS_0_ISSUER: ${APPLICATION_TENANTS_0_ISSUER}
+      APPLICATION_TENANTS_0_NAME: ${APPLICATION_TENANTS_0_NAME}
+      APPLICATION_TENANTS_0_DBSCHEMA: ${APPLICATION_TENANTS_0_DBSCHEMA}
+      SUBSCRIPTION_ENTITY-SERVICE-URL: ${SUBSCRIPTION_ENTITY_SERVICE_URL}
+      SUBSCRIPTION_STELLIO_URL: ${SUBSCRIPTION_STELLIO_URL}
     expose:
-      - 8084
+      - ${SUBSCRIPTION_SERVICE_PORT}
     depends_on:
       postgres:
         condition: service_healthy
@@ -136,28 +140,28 @@ services:
     container_name: pgadmin
     restart: always
     ports:
-      - 8888:80
+      - ${PGADMIN_PORT}:80
     environment:
-      PGADMIN_DEFAULT_EMAIL: risa@admin.com
-      PGADMIN_DEFAULT_PASSWORD: dYheTzFs1AiU6A
-      MAX_LOGIN_ATTEMPTS: 10
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      MAX_LOGIN_ATTEMPTS: ${MAX_LOGIN_ATTEMPTS}
     networks:
       - default
 
   mysql-db:
-    image: mysql:5.7
+    image: mysql:${MYSQL_VERSION}
     hostname: mysql-db
     container_name: mysql-db
     restart: always
     expose:
-      - '3306'
+      - "${MYSQL_PORT}"
     ports:
-      - '3306:3306'
+      - "${MYSQL_PORT}:${MYSQL_PORT}"
     networks:
       - default
     environment:
-      - 'MYSQL_ROOT_PASSWORD=bH8FrW5h7EJhmP'
-      - 'MYSQL_ROOT_HOST=192.168.208.1'
+      - "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}"
+      - "MYSQL_ROOT_HOST=192.168.208.1"
     volumes:
       - ./mysql-db:/var/lib/mysql
       - ./idm/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -171,8 +175,8 @@ services:
     depends_on:
       - mysql-db
     ports:
-      - '3000:3000'
-      - '444:444'
+      - "3000:3000"
+      - "444:444"
     expose:
       - 3000
     environment:
@@ -180,20 +184,20 @@ services:
       - IDM_DB_HOST=mysql-db
       - IDM_HOST=http://localhost:3000
       - IDM_PORT=3000
-      - IDM_DB_PASS=bH8FrW5h7EJhmP
+      - IDM_DB_PASS=${MYSQL_ROOT_PASSWORD}
       - IDM_DB_USER=root
-      - IDM_ADMIN_USER=admin
-      - IDM_ADMIN_EMAIL=risa@admin.com
-      - IDM_ADMIN_PASS=TvvVj3MDSnoss6
+      - IDM_ADMIN_USER=${IDM_ADMIN_USER}
+      - IDM_ADMIN_EMAIL=${IDM_ADMIN_EMAIL}
+      - IDM_ADMIN_PASS=${IDM_ADMIN_PASS}
 
   pep_proxy_wilma:
     image: fiware/pep-proxy
     container_name: wilma
     hostname: pep-proxy
     ports:
-      - 1027:1027
+      - ${PEP_PROXY_PORT}:${PEP_PROXY_PORT}
     expose:
-      - 1027
+      - ${PEP_PROXY_PORT}
     depends_on:
       keyrock:
         condition: service_started
@@ -203,17 +207,17 @@ services:
     environment:
       PEP_PROXY_APP_HOST: api-gateway
       PEP_PROXY_APP_PORT: 8080
-      PEP_PROXY_PORT: 1027
-      PEP_PROXY_IDM_PORT: 3000
+      PEP_PROXY_PORT: ${PEP_PROXY_PORT}
+      PEP_PROXY_IDM_PORT: ${KEYROCK_PORT}
       PEP_PROXY_IDM_HOST: keyrock
-      PEP_PROXY_HTTPS_ENABLED: false
-      PEP_PROXY_AUTH_ENABLED: false
-      PEP_PROXY_IDM_SSL_ENABLED: false
-      PEP_PROXY_APP_ID: 4f76e525-47c4-4841-beb3-cd500fcb3e50
-      PEP_PROXY_USERNAME: pep_proxy_e5cd7c36-ee98-4164-9f3f-ea077f9a13fe
-      PEP_PASSWORD: pep_proxy_9844c72d-ad31-462b-8783-4540e1cb5234
-      PEP_PROXY_PDP: idm
-      PEP_PROXY_MAGIC_KEY: 1YYBc3pboIuBwcB
+      PEP_PROXY_HTTPS_ENABLED: ${PEP_PROXY_HTTPS_ENABLED}
+      PEP_PROXY_AUTH_ENABLED: ${PEP_PROXY_AUTH_ENABLED}
+      PEP_PROXY_IDM_SSL_ENABLED: ${PEP_PROXY_IDM_SSL_ENABLED}
+      PEP_PROXY_APP_ID: ${PEP_PROXY_APP_ID}
+      PEP_PROXY_USERNAME: ${PEP_PROXY_USERNAME}
+      PEP_PASSWORD: ${PEP_PASSWORD}
+      PEP_PROXY_PDP: ${PEP_PROXY_PDP}
+      PEP_PROXY_MAGIC_KEY: ${PEP_PROXY_MAGIC_KEY}
     networks:
       - default
 
@@ -234,7 +238,6 @@ services:
 volumes:
   stellio-postgres-storage:
   pgadmin-data:
-
 
 networks:
   default:
